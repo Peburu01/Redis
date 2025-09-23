@@ -1,0 +1,34 @@
+# Redis Docker Quick Guide
+
+## Start Redis
+docker run --name local-redis -p 6379:6379 -d redis
+
+## Connect to Redis CLI
+docker exec -it local-redis redis-cli
+
+## Basic Redis Commands
+ping                    # Test connection (returns PONG)
+set mykey "hello"      # Set a key
+get mykey              # Get a key
+keys *                 # Show all keys
+del mykey              # Delete a key
+flushall               # Delete all keys
+exit                   # Exit CLI
+
+## Container Management
+docker ps              # Show running containers
+docker stop local-redis    # Stop Redis
+docker start local-redis   # Start Redis again
+docker rm local-redis      # Remove container (when stopped)
+
+## Notes
+- Redis runs on port `6379`
+- Container name is `local-redis`
+- Data is lost when container is removed
+- No password required for local use
+
+## Quick Setup
+1. Run the start command
+2. Connect with CLI command
+3. Test with `ping`
+4. Start using Redis commands

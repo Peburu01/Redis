@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redis CRUD Manager Pro</title>
+    <style>
+        :root {
+            /* Vercel Geist Color System */
+            --geist-foreground: #000;
+            --geist-background: #fff;
+            --geist-accents-1: #fafafa;
+            --geist-accents-2: #eaeaea;
+            --geist-accents-3: #999;
+            --geist-accents-4: #888;
+            --geist-accents-5: #666;
+            --geist-accents-6: #444;
+            --geist-accents-7: #333;
+            --geist-accents-8: #111;
+            --geist-success: #0070f3;
+            --geist-success-light: #3291ff;
+            --geist-success-dark: #0761d1;
+            --geist-error: #ee0000;
+            --geist-error-light: #ff1a1a;
+            --geist-warning: #f5a623;
+            --geist-warning-light: #f7b955;
+            --geist-cyan: #50e3c2;
+            --geist-purple: #7928ca;
+            --geist-violet: #8a63d2;
+            --geist-pink: #ff0080;
+            
+            /* Spacing Scale */
+            --geist-space-quarter: 0.125rem;
+            --geist-space-half: 0.25rem;
+            --geist-space: 0.5rem;
+            --geist-space-2: 1rem;
+            --geist-space-3: 1.5rem;
+            --geist-space-4: 2rem;
+            --geist-space-6: 3rem;
+            --geist-space-8: 4rem;
+            
+            /* Typography */
+            --geist-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+            --geist-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            
+            /* Border Radius */
+            --geist-radius: 6px;
+            --geist-radius-large: 8px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--geist-font-sans);
+            background: var(--geist-background);
+            color: var(--geist-foreground);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: var(--geist-space-4);
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: var(--geist-space-6);
+            border-bottom: 1px solid var(--geist-accents-2);
+            padding-bottom: var(--geist-space-4);
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: var(--geist-space);
+            background: linear-gradient(45deg, var(--geist-success), var(--geist-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            color: var(--geist-accents-5);
+            font-size: 0.875rem;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--geist-space-half);
+            background: var(--geist-accents-1);
+            border: 1px solid var(--geist-accents-2);
+            border-radius: var(--geist-radius-large);
+            padding: var(--geist-space-half) var(--geist-space-2);
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-top: var(--geist-space-2);
+        }
+
+        .status-badge.connected {
+            background: #f0f9ff;
+            border-color: var(--geist-success-light);
+            color: var(--geist-success-dark);
+        }
+
+        /* Navigation Tabs */
+        .nav-tabs {
+            display: flex;
+            background: var(--geist-accents-1);
+            border-radius: var(--geist-radius-large);
+            padding: var(--geist-space-quarter);
+            margin-bottom: var(--geist-space-4);
+            border: 1px solid var(--geist-accents-2);
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: var(--geist-space-2) var(--geist-space-3);
+            text-align: center;
+            cursor: pointer;
+            border-radius: var(--geist-radius);
+            transition: all 0.15s ease;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--geist-accents-5);
+            user-select: none;
+        }
+
+        .nav-tab:hover {
+            color: var(--geist-foreground);
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .nav-tab.active {
+            background: var(--geist-background);
+            color: var(--geist-foreground);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--geist-background);
+            border: 1px solid var(--geist-accents-2);
+            border-radius: var(--geist-radius-large);
+            padding: var(--geist-space-4);
+            margin-bottom: var(--geist-space-4);
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: var(--geist-space-3);
+            color: var(--geist-foreground);
+        }
+
+        /* Form Elements */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--geist-space-3);
+            margin-bottom: var(--geist-space-4);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--geist-space-half);
+        }
+
+        .form-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--geist-foreground);
+        }
+
+        .form-input, .form-select {
+            background: var(--geist-background);
+            border: 1px solid var(--geist-accents-2);
+            border-radius: var(--geist-radius);
+            padding: var(--geist-space-2);
+            font-family: inherit;
+            font-size: 0.875rem;
+            transition: all 0.15s ease;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--geist-success);
+            box-shadow: 0 0 0 2px var(--geist-success-light);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--geist-space-half);
+            padding: var(--geist-space-2) var(--geist-space-3);
+            font-size: 0.875rem;
+            font-weight: 500;
+            font-family: inherit;
+            border: 1px solid var(--geist-accents-2);
+            border-radius: var(--geist-radius);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-decoration: none;
+            user-select: none;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: var(--geist-foreground);
+            color: var(--geist-background);
+            border-color: var(--geist-foreground);
+        }
+
+        .btn-primary:hover {
+            background: var(--geist-accents-7);
+            border-color: var(--geist-accents-7);
+        }
+
+        .btn-success {
+            background: var(--geist-success);
+            color: white;
+            border-color: var(--geist-success);
+        }
+
+        .btn-success:hover {
+            background: var(--geist-success-dark);
+            border-color: var(--geist-success-dark);
+        }
+
+        .btn-error {
+            background: var(--geist-error);
+            color: white;
+            border-color: var(--geist-error);
+        }
+
+        .btn-error:hover {
+            background: var(--geist-error-light);
+            border-color: var(--geist-error-light);
+        }
+
+        .btn-warning {
+            background: var(--geist-warning);
+            color: white;
+            border-color: var(--geist-warning);
+        }
+
+        .btn-warning:hover {
+            background: var(--geist-warning-light);
+            border-color: var(--geist-warning-light);
+        }
+
+        .btn-secondary {
+            background: var(--geist-background);
+            color: var(--geist-foreground);
+            border-color: var(--geist-accents-2);
+        }
+
+        .btn-secondary:hover {
+            background: var(--geist-accents-1);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: var(--geist-space-2);
+            flex-wrap: wrap;
+        }
+
+        /* Database Grid */
+        .db-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: var(--geist-space-2);
+            margin: var(--geist-space-3) 0;
+        }
+
+        .db-card {
+            background: var(--geist-background);
+            border: 1px solid var(--geist-accents-2);
+            border-radius: var(--geist-radius);
+            padding: var(--geist-space-3);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            position: relative;
+        }
+
+        .db-card:hover {
+            border-color: var(--geist-accents-4);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .db-card.active {
+            border-color: var(--geist-success);
+            background: #f0f9ff;
+        }
+
+        .db-card.active::after {
+            content: '✓';
+            position: absolute;
+            top: var(--geist-space-half);
+            right: var(--geist-space-half);
+            background: var(--geist-success);
+            color: white;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .db-number {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: var(--geist-space-quarter);
+            color: var(--geist-foreground);
+        }
+
+        .db-keys {
+            font-size: 0.75rem;
+            color: var(--geist-accents-5);
+        }
+
+        .db-keys.has-data {
+            color: var(--geist-success);
+            font-weight: 500;
+        }
+
+        /* Metrics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: var(--geist-space-3);
+            margin: var(--geist-space-4) 0;
+        }
+
+        .metric-card {
+            background: var(--geist-background);
+            border: 1px solid var(--geist-accents-2);
+            border-radius: var(--geist-radius);
+            padding: var(--geist-space-3);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(45deg, var(--geist-success), var(--geist-purple));
+        }
+
+        .metric-card.performance::before {
+            background: linear-gradient(45deg, var(--geist-error), var(--geist-pink));
+        }
+
+        .metric-card.memory::before {
+            background: linear-gradient(45deg, var(--geist-warning), var(--geist-cyan));
+        }
+
+        .metric-card.activity::before {
+            background: linear-gradient(45deg, var(--geist-success), var(--geist-violet));
+        }
+
+        .metric-title {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--geist-accents-5);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: var(--geist-space);
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--geist-foreground);
+            font-family: var(--geist-font-mono);
+        }
+
+        .metric-unit {
+            font-size: 0.75rem;
+            color: var(--geist-accents-4);
+            margin-left: var(--geist-space-quarter);
+        }
+
+        /* Data Display */
+        .data-container {
+            background: var(--geist-background);
+            border: 1px solid var(--geist-accents-2);
+            border-radius: var(--geist-radius-large);
+            overflow: hidden;
+            margin: var(--geist-space-3) 0;
+        }
+
+        .data-header {
+            background: var(--geist-accents-1);
+            padding: var(--geist-space-3);
+            border-bottom: 1px solid var(--geist-accents-2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .data-item {
+            padding: var(--geist-space-3);
+            border-bottom: 1px solid var(--geist-accents-2);
+            display: flex;
+            align-items: center;
+            gap: var(--geist-space-3);
+        }
+
+        .data-item:last-child {
+            border-bottom: none;
+        }
+
+        .data-item:hover {
+            background: var(--geist-accents-1);
+        }
+
+        .key-name {
+            font-weight: 500;
+            color: var(--geist-success);
+            min-width: 120px;
+            word-break: break-word;
+        }
+
+        .key-value {
+            flex: 1;
+            font-family: var(--geist-font-mono);
+            background: var(--geist-accents-1);
+            padding: var(--geist-space) var(--geist-space-2);
+            border-radius: var(--geist-radius);
+            font-size: 0.8rem;
+            word-break: break-all;
+            max-width: 300px;
+        }
+
+        .key-actions {
+            display: flex;
+            gap: var(--geist-space);
+        }
+
+        .key-actions .btn {
+            padding: var(--geist-space-half) var(--geist-space-2);
+            font-size: 0.75rem;
+        }
+
+        /* Status Messages */
+        .status-message {
+            padding: var(--geist-space-3);
+            border-radius: var(--geist-radius);
+            margin: var(--geist-space-2) 0;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-left: 3px solid;
+        }
+
+        .status-message.success {
+            background: #f0f9ff;
+            border-color: var(--geist-success);
+            color: var(--geist-success-dark);
+        }
+
+        .status-message.error {
+            background: #fef2f2;
+            border-color: var(--geist-error);
+            color: #991b1b;
+        }
+
+        .status-message.info {
+            background: #f0f9ff;
+            border-color: var(--geist-success);
+            color: var(--geist-success-dark);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: var(--geist-space-6) var(--geist-space-4);
+            color: var(--geist-accents-5);
+        }
+
+        .empty-state::before {
+            content: '📭';
+            display: block;
+            font-size: 2rem;
+            margin-bottom: var(--geist-space-2);
+        }
+
+        .loading {
+            text-align: center;
+            padding: var(--geist-space-4);
+            color: var(--geist-accents-5);
+            font-style: italic;
+        }
+
+        /* Connection Info */
+        .connection-info {
+            background: var(--geist-accents-1);
+            border: 1px solid var(--geist-accents-2);
+            border-radius: var(--geist-radius);
+            padding: var(--geist-space-3);
+            font-size: 0.875rem;
+            line-height: 1.4;
+        }
+
+        /* Info Display */
+        .info-display {
+            background: var(--geist-accents-1);
+            border: 1px solid var(--geist-accents-2);
+            border-radius: var(--geist-radius);
+            padding: var(--geist-space-3);
+            font-family: var(--geist-font-mono);
+            font-size: 0.75rem;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: var(--geist-space-2);
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .btn-group {
+                flex-direction: column;
+            }
+            
+            .data-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--geist-space-2);
+            }
+            
+            .key-actions {
+                align-self: stretch;
+            }
+            
+            .db-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .tab-content.active {
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--geist-accents-1);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--geist-accents-3);
+            border-radius: 2px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--geist-accents-4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ Redis CRUD Manager Pro</h1>
+            <p>Advanced multi-database Redis management with real-time monitoring</p>
+            <span id="currentDbIndicator" class="status-badge" style="display: none;">
+                <span style="color: #10b981;">●</span>
+                <span>Connected to DB 0</span>
+            </span>
+        </div>
+        
+        <nav class="nav-tabs">
+            <div class="nav-tab active" data-tab="connection">🔗 Connection</div>
+            <div class="nav-tab" data-tab="databases">🗄️ Databases</div>
+            <div class="nav-tab" data-tab="performance">📊 Performance</div>
+            <div class="nav-tab" data-tab="data">💾 Data</div>
+            <div class="nav-tab" data-tab="stats">📈 Statistics</div>
+        </nav>
+
+        <div id="status"></div>
+
+        <!-- Connection Tab -->
+        <div id="connection" class="tab-content active">
+            <div class="card">
+                <h2 class="card-title">Redis Connection</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Host</label>
+                        <input id="host" class="form-input" value="localhost" placeholder="localhost">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Port</label>
+                        <input id="port" class="form-input" type="number" value="6379" placeholder="6379">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <input id="password" class="form-input" type="password" placeholder="(optional)">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Database</label>
+                        <select id="database" class="form-select">
+                            <option value="0">Database 0</option>
+                            <option value="1">Database 1</option>
+                            <option value="2">Database 2</option>
+                            <option value="3">Database 3</option>
+                            <option value="4">Database 4</option>
+                            <option value="5">Database 5</option>
+                            <option value="6">Database 6</option>
+                            <option value="7">Database 7</option>
+                            <option value="8">Database 8</option>
+                            <option value="9">Database 9</option>
+                            <option value="10">Database 10</option>
+                            <option value="11">Database 11</option>
+                            <option value="12">Database 12</option>
+                            <option value="13">Database 13</option>
+                            <option value="14">Database 14</option>
+                            <option value="15">Database 15</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button id="connectBtn" class="btn btn-success">Connect</button>
+                    <button id="testBtn" class="btn btn-warning">Test Connection</button>
+                    <button id="disconnectBtn" class="btn btn-error">Disconnect</button>
+                </div>
+                <div id="connectionStatus" class="connection-info">
+                    <div><strong>Status:</strong> <span id="connStatus">Not Connected</span></div>
+                    <div><strong>Connection:</strong> <span id="connDetails">None</span></div>
+                    <div><strong>Database:</strong> <span id="activeDatabase">None</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Databases Tab -->
+        <div id="databases" class="tab-content">
+            <div class="card">
+                <h2 class="card-title">Database Management</h2>
+                <p style="margin-bottom: var(--geist-space-3); color: var(--geist-accents-5); font-size: 0.875rem;">
+                    Click any database to switch instantly. Current: <strong id="currentDbText">DB 0</strong>
+                </p>
+                
+                <div class="db-grid" id="databaseGrid">
+                    <div class="db-card active" data-db="0">
+                        <div class="db-number">DB 0</div>
+                        <div class="db-keys" id="dbKeys0">- keys</div>
+                    </div>
+                    <div class="db-card" data-db="1">
+                        <div class="db-number">DB 1</div>
+                        <div class="db-keys" id="dbKeys1">- keys</div>
+                    </div>
+                    <div class="db-card" data-db="2">
+                        <div class="db-number">DB 2</div>
+                        <div class="db-keys" id="dbKeys2">- keys</div>
+                    </div>
+                    <div class="db-card" data-db="3">
+                        <div class="db-number">DB 3</div>
+                        <div class="db-keys" id="dbKeys3">- keys</div>
+                    </div>
+                    <div class="db-card" data-db="4">
+                        <div class="db-number">DB 4</div>
+                        <div class="db-keys" id="dbKeys4">- keys</div>
+                    </div>
+                    <div class="db-card" data-db="5">
+                        <div class="db-number">DB 5</div>
+                        <div class="db-keys" id="dbKeys5">- keys</div>
+                    </div>
+                    <div class="db-card" data-db="6">
+                        <div class="db-number">DB 6</div>
+                        <div class="db-keys" id="dbKeys6">- keys</div>
+                    </div>
+                    <div class="db-card" data-db="7">
+                        <div class="db-number">DB 7</div>
+                        <div class="db-keys" id="dbKeys7">- keys</div>
+                    </div>
+                    <div class="db-card" data-db="8">
+                        <div class="db-number">DB 8</div>
+                        <div class="db-keys" id="dbKeys8">- keys</div>
+                    </div>
+                    <div class="db-card" data-db="9">
+                        <div class="db-number">DB 9</div>
+                        <div class="db-keys" id="dbKeys9">- keys</div>
+                    </div>
+                    <div class="db-card" data-db="10">
+                        <div class="db-number">DB 10</div>
+                        <div class="db-keys" id="dbKeys10">- keys</div>
+                    </div>
+                    <div class="db-card" data-db="11">
+                        <div class="db-number">DB 11</div>
+                        <div class="db-keys" id="dbKeys11">- keys</div>
+                    </div>
+                    <div class="db-card" data-db="12">
+                        <div class="db-number">DB 12</div>
+                        <div class="db-keys" id="dbKeys12">- keys</div>
+                    </div>
+                    <div class="db-card" data-db="13">
+                        <div class="db-number">DB 13</div>
+                        <div class="db-keys" id="dbKeys13">- keys</div>
+                    </div>
+                    <div class="db-card" data-db="14">
+                        <div class="db-number">DB 14</div>
+                        <div class="db-keys" id="dbKeys14">- keys</div>
+                    </div>
+                    <div class="db-card" data-db="15">
+                        <div class="db-number">DB 15</div>
+                        <div class="db-keys" id="dbKeys15">- keys</div>
+                    </div>
+                </div>
+                
+                <div class="btn-group">
+                    <button id="refreshDbsBtn" class="btn btn-secondary">Refresh Databases</button>
+                    <button id="flushCurrentBtn" class="btn btn-error">Flush Current DB</button>
+                    <button id="flushAllDbsBtn" class="btn btn-error">Flush All Databases</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Tab -->
+        <div id="performance" class="tab-content">
+            <div class="card">
+                <h2 class="card-title">Performance Monitoring</h2>
+                
+                <div class="metrics-grid" id="performanceMetrics">
+                    <div class="metric-card performance">
+                        <div class="metric-title">Latency</div>
+                        <div class="metric-value" id="latencyValue">-</div>
+                        <span class="metric-unit">ms</span>
+                    </div>
+                    <div class="metric-card performance">
+                        <div class="metric-title">Operations/sec</div>
+                        <div class="metric-value" id="opsPerSecValue">-</div>
+                        <span class="metric-unit">ops</span>
+                    </div>
+                    <div class="metric-card activity">
+                        <div class="metric-title">Cache Hit Ratio</div>
+                        <div class="metric-value" id="hitRatioValue">-</div>
+                        <span class="metric-unit">%</span>
+                    </div>
+                    <div class="metric-card memory">
+                        <div class="metric-title">Memory Usage</div>
+                        <div class="metric-value" id="memoryUsageValue">-</div>
+                        <span class="metric-unit">MB</span>
+                    </div>
+                    <div class="metric-card activity">
+                        <div class="metric-title">Connected Clients</div>
+                        <div class="metric-value" id="clientsValue">-</div>
+                        <span class="metric-unit">clients</span>
+                    </div>
+                    <div class="metric-card activity">
+                        <div class="metric-title">Current DB Keys</div>
+                        <div class="metric-value" id="currentDbKeysValue">-</div>
+                        <span class="metric-unit">keys</span>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button id="refreshPerfBtn" class="btn btn-secondary">Refresh Performance</button>
+                    <button id="benchmarkBtn" class="btn btn-warning">Run Latency Test</button>
+                    <button id="slowlogBtn" class="btn btn-secondary">View Slow Log</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Tab -->
+        <div id="data" class="tab-content">
+            <div class="card">
+                <h2 class="card-title">Data Management - <span id="dataTabDbIndicator">DB 0</span></h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Key</label>
+                        <input id="newKey" class="form-input" placeholder="Enter key name" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Value</label>
+                        <input id="newValue" class="form-input" placeholder="Enter value" />
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button id="addBtn" class="btn btn-success">Add/Update</button>
+                    <button id="fetchBtn" class="btn btn-primary">Fetch Data</button>
+                    <button id="clearAllBtn" class="btn btn-error">Clear Current DB</button>
+                </div>
+
+                <div class="data-container">
+                    <div class="data-header">
+                        <span>Redis Data (Database <span id="redisDataDbIndicator">0</span>)</span>
+                        <span id="keyCount">Click 'Fetch Data' to load</span>
+                    </div>
+                    <div id="redisContent" class="empty-state">
+                        Click "Fetch Data" to load Redis keys and values for the current database
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Tab -->
+        <div id="stats" class="tab-content">
+            <div class="card">
+                <h2 class="card-title">Redis Statistics</h2>
+                <div class="btn-group">
+                    <button id="infoBtn" class="btn btn-secondary">Get Info</button>
+                    <button id="memoryBtn" class="btn btn-secondary">Memory Stats</button>
+                    <button id="pingBtn" class="btn btn-success">Ping</button>
+                    <button id="clientBtn" class="btn btn-secondary">Client Info</button>
+                </div>
+
+                <div id="quickStats" class="metrics-grid"></div>
+                <div id="detailedInfo" class="info-display" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class RedisManager {
+            constructor() {
+                this.api = 'http://localhost:3000/api';
+                this.isConnected = false;
+                this.currentDbNum = 0;
+                this.performanceInterval = null;
+                
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                setTimeout(() => this.connect(), 1000);
+            }
+
+            setupEventListeners() {
+                // Tab switching
+                document.querySelectorAll('.nav-tab').forEach(tab => {
+                    tab.addEventListener('click', (e) => this.showTab(e.target.dataset.tab));
+                });
+
+                // Database selector
+                document.querySelectorAll('.db-card').forEach(card => {
+                    card.addEventListener('click', (e) => this.switchDatabase(parseInt(e.currentTarget.dataset.db)));
+                });
+
+                // Event listeners for buttons
+                this.addClickListener('connectBtn', () => this.connect());
+                this.addClickListener('testBtn', () => this.testConnection());
+                this.addClickListener('disconnectBtn', () => this.disconnect());
+                this.addClickListener('refreshDbsBtn', () => this.refreshDatabases());
+                this.addClickListener('flushCurrentBtn', () => this.flushCurrentDb());
+                this.addClickListener('flushAllDbsBtn', () => this.flushAllDbs());
+                this.addClickListener('refreshPerfBtn', () => this.updatePerformance());
+                this.addClickListener('benchmarkBtn', () => this.runLatencyTest());
+                this.addClickListener('slowlogBtn', () => this.getSlowLog());
+                this.addClickListener('addBtn', () => this.addData());
+                this.addClickListener('fetchBtn', () => this.fetchData());
+                this.addClickListener('clearAllBtn', () => this.clearCurrentDb());
+                this.addClickListener('infoBtn', () => this.getRedisInfo());
+                this.addClickListener('memoryBtn', () => this.getMemoryStats());
+                this.addClickListener('pingBtn', () => this.ping());
+                this.addClickListener('clientBtn', () => this.getClientInfo());
+            }
+
+            addClickListener(id, handler) {
+                const element = document.getElementById(id);
+                if (element) element.addEventListener('click', handler);
+            }
+
+            showTab(tabName) {
+                // Hide all tabs
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+                
+                // Show selected tab
+                const selectedContent = document.getElementById(tabName);
+                const selectedTab = document.querySelector('[data-tab="' + tabName + '"]');
+                
+                if (selectedContent) selectedContent.classList.add('active');
+                if (selectedTab) selectedTab.classList.add('active');
+
+                // Start/stop performance monitoring
+                if (tabName === 'performance' && this.isConnected) {
+                    this.startPerformanceMonitoring();
+                } else {
+                    this.stopPerformanceMonitoring();
+                }
+            }
+
+            showStatus(message, type = 'success') {
+                const status = document.getElementById('status');
+                status.innerHTML = '<div class="status-message ' + type + '">' + message + '</div>';
+                setTimeout(() => status.innerHTML = '', 4000);
+            }
+
+            updateDbIndicators(dbNum) {
+                this.currentDbNum = dbNum;
+                document.getElementById('currentDbIndicator').innerHTML = '<span style="color: #10b981;">●</span><span>Connected to DB ' + dbNum + '</span>';
+                document.getElementById('currentDbIndicator').style.display = 'inline-flex';
+                document.getElementById('currentDbIndicator').classList.add('connected');
+                document.getElementById('currentDbText').textContent = 'DB ' + dbNum;
+                document.getElementById('dataTabDbIndicator').textContent = 'DB ' + dbNum;
+                document.getElementById('redisDataDbIndicator').textContent = dbNum;
+                document.getElementById('activeDatabase').textContent = 'Database ' + dbNum;
+                
+                // Update active database card
+                document.querySelectorAll('.db-card').forEach(card => card.classList.remove('active'));
+                const activeCard = document.querySelector('[data-db="' + dbNum + '"]');
+                if (activeCard) activeCard.classList.add('active');
+            }
+
+            async apiCall(endpoint, options = {}) {
+                try {
+                    const response = await fetch(this.api + endpoint, {
+                        headers: { 'Content-Type': 'application/json' },
+                        ...options
+                    });
+                    return await response.json();
+                } catch (error) {
+                    throw new Error('API call failed: ' + error.message);
+                }
+            }
+
+            // Connection methods
+            async connect() {
+                try {
+                    const config = {
+                        host: document.getElementById('host').value.trim() || 'localhost',
+                        port: parseInt(document.getElementById('port').value) || 6379,
+                        password: document.getElementById('password').value.trim(),
+                        database: parseInt(document.getElementById('database').value) || 0
+                    };
+
+                    const result = await this.apiCall('/connect', {
+                        method: 'POST',
+                        body: JSON.stringify(config)
+                    });
+
+                    if (result.success) {
+                        this.isConnected = true;
+                        this.updateDbIndicators(config.database);
+                        document.getElementById('connStatus').innerHTML = '<span style="color: #10b981;">Connected ✓</span>';
+                        document.getElementById('connDetails').textContent = config.host + ':' + config.port;
+                        this.showStatus('Successfully connected to Redis at ' + config.host + ':' + config.port, 'success');
+                        this.refreshDatabases();
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (error) {
+                    this.showStatus('Connection failed: ' + error.message, 'error');
+                    this.isConnected = false;
+                    document.getElementById('connStatus').innerHTML = '<span style="color: #ee0000;">Failed ✗</span>';
+                }
+            }
+
+            async testConnection() {
+                await this.connect();
+                if (this.isConnected) await this.ping();
+            }
+
+            async disconnect() {
+                try {
+                    await this.apiCall('/disconnect', { method: 'POST' });
+                    this.isConnected = false;
+                    this.stopPerformanceMonitoring();
+                    document.getElementById('connStatus').textContent = 'Disconnected';
+                    document.getElementById('connDetails').textContent = 'None';
+                    document.getElementById('activeDatabase').textContent = 'None';
+                    document.getElementById('currentDbIndicator').style.display = 'none';
+                    this.showStatus('Disconnected from Redis', 'info');
+                } catch (error) {
+                    this.showStatus('Disconnect error: ' + error.message, 'error');
+                }
+            }
+
+            async ping() {
+                try {
+                    const result = await this.apiCall('/ping');
+                    if (result.success) {
+                        this.showStatus('Ping successful: ' + result.response + ' (' + result.responseTime + 'ms)', 'success');
+                    }
+                } catch (error) {
+                    this.showStatus('Ping error: ' + error.message, 'error');
+                }
+            }
+
+            // Database methods
+            async switchDatabase(dbNum) {
+                if (!this.isConnected) {
+                    this.showStatus('Please connect to Redis first', 'error');
+                    return;
+                }
+
+                try {
+                    const result = await this.apiCall('/switch-database', {
+                        method: 'POST',
+                        body: JSON.stringify({ database: dbNum })
+                    });
+
+                    if (result.success) {
+                        this.updateDbIndicators(dbNum);
+                        this.showStatus('Successfully switched to Database ' + dbNum, 'success');
+                    }
+                } catch (error) {
+                    this.showStatus('Database switch error: ' + error.message, 'error');
+                }
+            }
+
+            async refreshDatabases() {
+                if (!this.isConnected) return;
+
+                try {
+                    const result = await this.apiCall('/databases-info');
+                    if (result.success) {
+                        result.databases.forEach(db => {
+                            const keyElement = document.getElementById('dbKeys' + db.id);
+                            if (keyElement) {
+                                keyElement.textContent = db.keys + ' keys';
+                                keyElement.className = db.keys > 0 ? 'db-keys has-data' : 'db-keys';
+                            }
+                        });
+                        const totalKeys = result.databases.reduce((sum, db) => sum + db.keys, 0);
+                        this.showStatus('Database info refreshed: ' + totalKeys + ' total keys across all databases', 'success');
+                    }
+                } catch (error) {
+                    this.showStatus('Database refresh error: ' + error.message, 'error');
+                }
+            }
+
+            async flushCurrentDb() {
+                if (!confirm('⚠️  Are you sure you want to flush Database ' + this.currentDbNum + '?\n\nThis will permanently delete ALL data in this database!')) return;
+                
+                try {
+                    const result = await this.apiCall('/flush-database', {
+                        method: 'DELETE',
+                        body: JSON.stringify({ database: this.currentDbNum })
+                    });
+
+                    if (result.success) {
+                        this.showStatus('Database ' + this.currentDbNum + ' has been flushed successfully', 'success');
+                        this.refreshDatabases();
+                    }
+                } catch (error) {
+                    this.showStatus('Flush error: ' + error.message, 'error');
+                }
+            }
+
+            async flushAllDbs() {
+                if (!confirm('⚠️  DANGER: Are you sure you want to flush ALL databases?\n\nThis will permanently delete ALL data across all 16 databases!\n\nThis action cannot be undone.')) return;
+                
+                try {
+                    const result = await this.apiCall('/flush-all-databases', { method: 'DELETE' });
+                    if (result.success) {
+                        this.showStatus('All databases have been flushed successfully', 'success');
+                        this.refreshDatabases();
+                    }
+                } catch (error) {
+                    this.showStatus('Flush all error: ' + error.message, 'error');
+                }
+            }
+
+            // Data methods
+            async fetchData() {
+                if (!this.isConnected) {
+                    this.showStatus('Please connect to Redis first', 'error');
+                    return;
+                }
+
+                const content = document.getElementById('redisContent');
+                const keyCount = document.getElementById('keyCount');
+                
+                try {
+                    content.innerHTML = '<div class="loading">Loading data...</div>';
+                    keyCount.textContent = 'Loading...';
+                    
+                    const result = await this.apiCall('/all');
+                    
+                    if (result.success && result.data.length > 0) {
+                        keyCount.textContent = result.count + ' keys found';
+                        content.innerHTML = result.data.map(item => 
+                            '<div class="data-item">' +
+                                '<div class="key-name">' + item.key + '</div>' +
+                                '<div class="key-value">' + item.value + '</div>' +
+                                '<div class="key-actions">' +
+                                    '<button onclick="app.editKey(\'' + item.key + '\', \'' + item.value.replace(/'/g, "\\'") + '\')" class="btn btn-success">Edit</button>' +
+                                    '<button onclick="app.deleteKey(\'' + item.key + '\')" class="btn btn-error">Delete</button>' +
+                                '</div>' +
+                            '</div>'
+                        ).join('');
+                        this.showStatus('Successfully loaded ' + result.count + ' keys from Database ' + this.currentDbNum, 'success');
+                    } else {
+                        keyCount.textContent = '0 keys';
+                        content.innerHTML = '<div class="empty-state">No data found in Database ' + this.currentDbNum + '</div>';
+                    }
+                } catch (error) {
+                    content.innerHTML = '<div class="empty-state">Error loading data: ' + error.message + '</div>';
+                    keyCount.textContent = 'Error';
+                    this.showStatus('Error fetching data: ' + error.message, 'error');
+                }
+            }
+
+            async addData() {
+                if (!this.isConnected) {
+                    this.showStatus('Please connect to Redis first', 'error');
+                    return;
+                }
+
+                const key = document.getElementById('newKey').value.trim();
+                const value = document.getElementById('newValue').value.trim();
+                
+                if (!key || !value) {
+                    this.showStatus('Please enter both key and value', 'error');
+                    return;
+                }
+                
+                try {
+                    const result = await this.apiCall('/set', {
+                        method: 'POST',
+                        body: JSON.stringify({ key, value })
+                    });
+                    
+                    if (result.success) {
+                        this.showStatus('Successfully added key "' + key + '" to Database ' + this.currentDbNum, 'success');
+                        document.getElementById('newKey').value = '';
+                        document.getElementById('newValue').value = '';
+                        this.refreshDatabases();
+                    }
+                } catch (error) {
+                    this.showStatus('Add error: ' + error.message, 'error');
+                }
+            }
+
+            async deleteKey(key) {
+                if (!confirm('Are you sure you want to delete key "' + key + '" from Database ' + this.currentDbNum + '?')) return;
+                
+                try {
+                    const result = await this.apiCall('/delete/' + key, { method: 'DELETE' });
+                    if (result.success) {
+                        this.showStatus('Successfully deleted key "' + key + '"', 'success');
+                        this.fetchData();
+                        this.refreshDatabases();
+                    }
+                } catch (error) {
+                    this.showStatus('Delete error: ' + error.message, 'error');
+                }
+            }
+
+            editKey(key, currentValue) {
+                const newValue = prompt('Edit value for key "' + key + '":', currentValue);
+                if (newValue !== null && newValue !== currentValue) {
+                    this.updateKey(key, newValue);
+                }
+            }
+
+            async updateKey(key, value) {
+                try {
+                    const result = await this.apiCall('/set', {
+                        method: 'POST',
+                        body: JSON.stringify({ key, value })
+                    });
+                    
+                    if (result.success) {
+                        this.showStatus('Successfully updated key "' + key + '"', 'success');
+                        this.fetchData();
+                        this.refreshDatabases();
+                    }
+                } catch (error) {
+                    this.showStatus('Update error: ' + error.message, 'error');
+                }
+            }
+
+            async clearCurrentDb() {
+                if (!confirm('⚠️  Are you sure you want to clear ALL keys in Database ' + this.currentDbNum + '?')) return;
+                
+                try {
+                    const result = await this.apiCall('/flush-database', {
+                        method: 'DELETE',
+                        body: JSON.stringify({ database: this.currentDbNum })
+                    });
+                    
+                    if (result.success) {
+                        this.showStatus('Successfully cleared Database ' + this.currentDbNum, 'success');
+                        this.fetchData();
+                        this.refreshDatabases();
+                    }
+                } catch (error) {
+                    this.showStatus('Clear error: ' + error.message, 'error');
+                }
+            }
+
+            // Performance monitoring
+            startPerformanceMonitoring() {
+                if (this.performanceInterval) return;
+                this.updatePerformance();
+                this.performanceInterval = setInterval(() => this.updatePerformance(), 3000);
+            }
+
+            stopPerformanceMonitoring() {
+                if (this.performanceInterval) {
+                    clearInterval(this.performanceInterval);
+                    this.performanceInterval = null;
+                }
+            }
+
+            async updatePerformance() {
+                if (!this.isConnected) return;
+
+                try {
+                    const result = await this.apiCall('/performance');
+                    if (result.success) {
+                        const perf = result.performance;
+                        
+                        document.getElementById('latencyValue').textContent = perf.latency || '-';
+                        document.getElementById('opsPerSecValue').textContent = perf.opsPerSec || '-';
+                        document.getElementById('hitRatioValue').textContent = perf.hitRatio || '-';
+                        document.getElementById('memoryUsageValue').textContent = perf.memoryUsageMB || '-';
+                        document.getElementById('clientsValue').textContent = perf.connectedClients || '-';
+                        document.getElementById('currentDbKeysValue').textContent = perf.currentDbKeys || '-';
+                    }
+                } catch (error) {
+                    console.error('Performance update error:', error);
+                }
+            }
+
+            async runLatencyTest() {
+                if (!this.isConnected) return;
+
+                try {
+                    this.showStatus('Running comprehensive latency test...', 'info');
+                    const result = await this.apiCall('/latency-test');
+                    
+                    if (result.success) {
+                        this.showStatus('Latency Test Complete - Min: ' + result.min + 'ms | Avg: ' + result.avg + 'ms | Max: ' + result.max + 'ms', 'success');
+                        this.updatePerformance();
+                    }
+                } catch (error) {
+                    this.showStatus('Latency test error: ' + error.message, 'error');
+                }
+            }
+
+            async getSlowLog() {
+                try {
+                    const result = await this.apiCall('/slowlog');
+                    
+                    if (result.success) {
+                        let html = '<h4>Slow Query Log (Latest 10):</h4>';
+                        if (result.slowlog.length === 0) {
+                            html += '<p style="color: var(--geist-accents-5); margin-top: var(--geist-space-2);">No slow commands found - Redis is performing well!</p>';
+                        } else {
+                            html += '<table style="width: 100%; border-collapse: collapse; margin-top: var(--geist-space-2); font-size: 0.75rem;">';
+                            html += '<thead><tr style="background: var(--geist-accents-1);"><th style="border: 1px solid var(--geist-accents-2); padding: var(--geist-space); text-align: left;">Time</th><th style="border: 1px solid var(--geist-accents-2); padding: var(--geist-space); text-align: left;">Duration (μs)</th><th style="border: 1px solid var(--geist-accents-2); padding: var(--geist-space); text-align: left;">Command</th></tr></thead><tbody>';
+                            result.slowlog.forEach(entry => {
+                                const time = new Date(entry.timestamp * 1000).toLocaleString();
+                                const command = entry.command.join(' ').substring(0, 50) + (entry.command.join(' ').length > 50 ? '...' : '');
+                                html += '<tr><td style="border: 1px solid var(--geist-accents-2); padding: var(--geist-space-half);">' + time + '</td><td style="border: 1px solid var(--geist-accents-2); padding: var(--geist-space-half);">' + entry.duration + '</td><td style="border: 1px solid var(--geist-accents-2); padding: var(--geist-space-half); font-family: var(--geist-font-mono);">' + command + '</td></tr>';
+                            });
+                            html += '</tbody></table>';
+                        }
+                        
+                        document.getElementById('detailedInfo').innerHTML = html;
+                        document.getElementById('detailedInfo').style.display = 'block';
+                        this.showTab('stats');
+                    }
+                } catch (error) {
+                    this.showStatus('Slowlog error: ' + error.message, 'error');
+                }
+            }
+
+            // Statistics methods
+            async getRedisInfo() {
+                try {
+                    const result = await this.apiCall('/info');
+                    if (result.success) {
+                        this.displayQuickStats(result.parsed);
+                        document.getElementById('detailedInfo').innerHTML = '<h4>Complete Redis Server Information:</h4><pre style="margin-top: var(--geist-space-2);">' + result.raw + '</pre>';
+                        document.getElementById('detailedInfo').style.display = 'block';
+                    }
+                } catch (error) {
+                    this.showStatus('Info error: ' + error.message, 'error');
+                }
+            }
+
+            async getMemoryStats() {
+                try {
+                    const result = await this.apiCall('/memory-stats');
+                    if (result.success) {
+                        this.displayMemoryStats(result.stats);
+                    }
+                } catch (error) {
+                    this.showStatus('Memory stats error: ' + error.message, 'error');
+                }
+            }
+
+            async getClientInfo() {
+                try {
+                    const result = await this.apiCall('/client-info');
+                    if (result.success) {
+                        document.getElementById('detailedInfo').innerHTML = '<h4>Client Connection Information:</h4><pre style="margin-top: var(--geist-space-2);">' + JSON.stringify(result.info, null, 2) + '</pre>';
+                        document.getElementById('detailedInfo').style.display = 'block';
+                    }
+                } catch (error) {
+                    this.showStatus('Client info error: ' + error.message, 'error');
+                }
+            }
+
+            displayQuickStats(stats) {
+                const quickStats = document.getElementById('quickStats');
+                quickStats.innerHTML = 
+                    '<div class="metric-card">' +
+                        '<div class="metric-title">Redis Version</div>' +
+                        '<div class="metric-value">' + (stats.redis_version || 'N/A') + '</div>' +
+                    '</div>' +
+                    '<div class="metric-card">' +
+                        '<div class="metric-title">Connected Clients</div>' +
+                        '<div class="metric-value">' + (stats.connected_clients || '0') + '</div>' +
+                    '</div>' +
+                    '<div class="metric-card memory">' +
+                        '<div class="metric-title">Used Memory</div>' +
+                        '<div class="metric-value">' + this.formatBytes(stats.used_memory || 0) + '</div>' +
+                    '</div>' +
+                    '<div class="metric-card activity">' +
+                        '<div class="metric-title">Uptime</div>' +
+                        '<div class="metric-value">' + (stats.uptime_in_days || '0') + '</div>' +
+                        '<span class="metric-unit">days</span>' +
+                    '</div>';
+            }
+
+            displayMemoryStats(stats) {
+                const quickStats = document.getElementById('quickStats');
+                quickStats.innerHTML = 
+                    '<div class="metric-card memory">' +
+                        '<div class="metric-title">Total Allocated</div>' +
+                        '<div class="metric-value">' + this.formatBytes(stats.total_allocated || 0) + '</div>' +
+                    '</div>' +
+                    '<div class="metric-card memory">' +
+                        '<div class="metric-title">Peak Allocated</div>' +
+                        '<div class="metric-value">' + this.formatBytes(stats.peak_allocated || 0) + '</div>' +
+                    '</div>';
+            }
+
+            formatBytes(bytes) {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+            }
+        }
+
+        // Initialize the application
+        const app = new RedisManager();
+    </script>
+</body>
+</html>
