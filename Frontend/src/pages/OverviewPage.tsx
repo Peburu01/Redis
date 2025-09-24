@@ -2,28 +2,20 @@ import { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { 
-  Database, Zap, Activity, HardDrive, Users, TestTube, RefreshCw, 
-  Cloud, Wifi, Loader2, TrendingUp, Server, Clock, Shield, 
-  BarChart3, CheckCircle2, AlertCircle 
+  Database, TrendingUp, Cpu, Network, TestTube, RefreshCw, 
+  Cloud, Wifi, Shield, CheckCircle2, AlertCircle, 
+  Timer, Gauge, Target, Eye
 } from 'lucide-react'
-import MetricCard from '../components/MetricCard'
 
-// Types
-interface DatabaseInfo {
-  id: number; keys: number; expires: number; avgTtl: number
-}
-
+interface DatabaseInfo { id: number; keys: number; expires: number; avgTtl: number }
 interface PerformanceMetrics {
   latency: number; opsPerSec: number; hitRatio: string; memoryUsageMB: number
   connectedClients: string; currentDbKeys: number; totalCommands: string
-  keyspaceHits: string; keyspaceMisses: string; usedMemoryHuman: string; uptimeHuman: string
-  memoryUsagePercent?: string; redisVersion?: string; serverMode?: string
-  maxMemoryHuman?: string
+  keyspaceHits: string; keyspaceMisses: string; usedMemoryHuman: string
+  uptimeHuman: string; memoryUsagePercent?: string; redisVersion?: string
 }
 
 interface OverviewPageProps {
@@ -35,422 +27,282 @@ interface OverviewPageProps {
 const OverviewPage = ({ isConnected, currentDb, connectionInfo, showStatus, setActiveSection }: OverviewPageProps) => {
   const [databases, setDatabases] = useState<DatabaseInfo[]>([])
   const [performance, setPerformance] = useState<PerformanceMetrics | null>(null)
-  const [loadingStates, setLoadingStates] = useState({
-    refreshing: false, testing: false, updating: false
-  })
+  const [loading, setLoading] = useState({ refreshing: false, testing: false, updating: false })
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
 
-  // API helper
-  const apiCall = async (endpoint: string, options: RequestInit = {}) => {
-    try {
-      const response = await fetch(`/api${endpoint}`, { headers: { 'Content-Type': 'application/json' }, ...options })
-      return await response.json()
-    } catch (error) {
-      throw new Error(`API call failed: ${error}`)
-    }
+  const apiCall = async (endpoint: string) => {
+    const response = await fetch(`/api${endpoint}`, { headers: { 'Content-Type': 'application/json' } })
+    return await response.json()
   }
 
-  // Refresh databases
+  const updateLoading = (key: keyof typeof loading, value: boolean) => 
+    setLoading(prev => ({ ...prev, [key]: value }))
+
   const refreshDatabases = async () => {
     if (!isConnected) return
-    setLoadingStates(prev => ({ ...prev, refreshing: true }))
+    updateLoading('refreshing', true)
     try {
       const result = await apiCall('/databases-info')
       if (result.success) {
         setDatabases(result.databases || [])
-        if (result.totalKeys !== undefined) {
-          showStatus('success', 'Refresh Complete', `Found ${result.totalKeys} keys across all databases`)
-        }
+        showStatus('success', 'Refresh Complete', `Found ${result.totalKeys || 0} keys`)
       }
     } catch (error: any) {
       showStatus('error', 'Refresh Failed', error.message)
     } finally {
-      setLoadingStates(prev => ({ ...prev, refreshing: false }))
+      updateLoading('refreshing', false)
     }
   }
 
-  // Update performance
   const updatePerformance = async () => {
-    if (!isConnected || loadingStates.updating) return
-    setLoadingStates(prev => ({ ...prev, updating: true }))
+    if (!isConnected) return
+    updateLoading('updating', true)
     try {
       const result = await apiCall('/performance')
       if (result.success) {
         setPerformance(result.performance)
         setLastUpdate(new Date())
       }
-    } catch (error) {
-      console.error('Performance update error:', error)
-    } finally {
-      setLoadingStates(prev => ({ ...prev, updating: false }))
+    } catch { } finally {
+      updateLoading('updating', false)
     }
   }
 
-  // Run latency test
   const runLatencyTest = async () => {
     if (!isConnected) return
-    setLoadingStates(prev => ({ ...prev, testing: true }))
-    showStatus('info', 'Performance Test', 'Running comprehensive latency benchmark...')
+    updateLoading('testing', true)
     try {
       const result = await apiCall('/latency-test?samples=100')
       if (result.success) {
-        showStatus('success', 'Benchmark Complete', 
-          `Avg: ${result.avg}ms | P95: ${result.p95}ms | P99: ${result.p99}ms | Throughput: ${result.throughput} ops/s`)
+        showStatus('success', 'Test Complete', `Avg: ${result.avg}ms | P95: ${result.p95}ms`)
         await updatePerformance()
       }
     } catch (error: any) {
       showStatus('error', 'Test Failed', error.message)
     } finally {
-      setLoadingStates(prev => ({ ...prev, testing: false }))
+      updateLoading('testing', false)
     }
   }
 
-  // Auto-update performance
   useEffect(() => {
     if (isConnected) {
       updatePerformance()
+      refreshDatabases()
       const interval = setInterval(updatePerformance, 5000)
       return () => clearInterval(interval)
     }
   }, [isConnected])
 
-  // Auto-refresh databases on mount
-  useEffect(() => {
-    if (isConnected) refreshDatabases()
-  }, [isConnected])
-
-  // Helper functions
-  const getHealthStatus = () => {
-    if (!performance) return { status: 'unknown', color: 'muted-foreground' }
-    const latency = performance.latency
+  const getHealthColor = () => {
+    if (!performance) return 'blue'
+    const latency = performance.latency || 0
     const hitRatio = parseFloat(performance.hitRatio || '0')
-    
-    if (latency <= 10 && hitRatio >= 80) return { status: 'excellent', color: 'text-green-500' }
-    if (latency <= 50 && hitRatio >= 60) return { status: 'good', color: 'text-blue-500' }
-    if (latency <= 100) return { status: 'fair', color: 'text-yellow-500' }
-    return { status: 'poor', color: 'text-red-500' }
+    if (latency <= 10 && hitRatio >= 80) return 'green'
+    if (latency <= 50 && hitRatio >= 60) return 'blue'
+    return latency <= 100 ? 'yellow' : 'red'
   }
 
-  const formatUptime = (uptime: string) => {
-    return uptime?.replace(/(\d+)\s*days?\s*(\d+):(\d+):(\d+)/, '$1d $2h $3m') || 'Unknown'
+  const getLatencyStatus = (latency?: number) => {
+    if (!latency) return 'No data'
+    if (latency <= 10) return 'Excellent'
+    if (latency <= 50) return 'Good'
+    return 'Slow'
   }
+
+  const getStatusColor = (type: string) => {
+    const colors = { green: 'text-green-600 border-l-green-500', red: 'text-red-600 border-l-red-500', 
+                    yellow: 'text-yellow-600 border-l-yellow-500', blue: 'text-blue-600 border-l-blue-500' }
+    return colors[type as keyof typeof colors] || colors.blue
+  }
+
+  const MetricCard = ({ title, value, unit, icon: Icon, color, trend }: {
+    title: string; value: string | number; unit?: string; icon: any; color: string; trend?: string
+  }) => (
+    <Card className={`border-l-4 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer ${getStatusColor(color).split(' ')[1]}`}>
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Icon className={`h-4 w-4 ${getStatusColor(color).split(' ')[0]}`} />
+              <p className="text-sm text-muted-foreground">{title}</p>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <p className="text-2xl font-bold">{value}</p>
+              {unit && <span className="text-sm text-muted-foreground">{unit}</span>}
+            </div>
+          </div>
+          {trend && <Badge variant="secondary" className="text-xs">{trend}</Badge>}
+        </div>
+      </CardContent>
+    </Card>
+  )
+
+  const health = getHealthColor()
+  const latency = performance?.latency || 0
+
+  const metrics = [
+    { title: 'Response Time', value: latency, unit: 'ms', icon: Timer, 
+      color: latency <= 10 ? 'green' : latency <= 50 ? 'blue' : 'red', trend: getLatencyStatus(latency) },
+    { title: 'Throughput', value: performance?.opsPerSec ?? 0, unit: 'ops/s', icon: TrendingUp, color: 'blue', trend: 'Real-time' },
+    { title: 'Memory Usage', value: performance?.memoryUsageMB ?? 0, unit: 'MB', icon: Cpu, color: 'yellow', 
+      trend: performance?.memoryUsagePercent ? `${performance.memoryUsagePercent}% used` : 'Available' },
+    { title: 'Active Clients', value: performance?.connectedClients ?? '0', icon: Network, color: 'green', trend: 'Connected' }
+  ]
+
+  const actions = [
+    { label: 'Performance Test', icon: TestTube, onClick: runLatencyTest, isLoading: loading.testing },
+    { label: 'Refresh Data', icon: RefreshCw, onClick: refreshDatabases, isLoading: loading.refreshing },
+    { label: 'Browse Data', icon: Database, onClick: () => setActiveSection('databases'), isLoading: false },
+    { label: 'Monitoring', icon: TrendingUp, onClick: () => setActiveSection('monitoring'), isLoading: false }
+  ]
+
+  const performanceData = [
+    ['Database Keys', performance?.currentDbKeys?.toLocaleString()],
+    ['Total Commands', performance?.totalCommands],
+    ['Memory Used', performance?.usedMemoryHuman]
+  ]
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 space-y-8 max-w-7xl">
-        {/* Header Section */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
+      <div className="container mx-auto p-6 space-y-6 max-w-7xl">
+        
+        {/* Header */}
+        <div className="rounded-2xl bg-gradient-to-r from-primary/10 to-background border p-8">
+          <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">System Overview</h1>
-              <p className="text-lg text-muted-foreground mt-1">
-                Real-time monitoring and performance insights
-              </p>
+              <h1 className="text-4xl font-bold mb-2">Redis Analytics Hub</h1>
+              <p className="text-lg text-muted-foreground">Real-time monitoring and performance insights</p>
             </div>
-            <div className="flex items-center gap-2">
-              {lastUpdate && (
-                <Badge variant="secondary" className="gap-1">
-                  <Clock className="h-3 w-3" />
-                  {lastUpdate.toLocaleTimeString()}
-                </Badge>
-              )}
+            <div className="text-right space-y-2">
               <Badge variant={isConnected ? "default" : "destructive"} className="gap-1">
                 {isConnected ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                {isConnected ? 'Connected' : 'Disconnected'}
+                {isConnected ? `HEALTHY (${health.toUpperCase()})` : 'OFFLINE'}
               </Badge>
+              {lastUpdate && <p className="text-xs text-muted-foreground">Updated {lastUpdate.toLocaleTimeString()}</p>}
             </div>
           </div>
         </div>
 
-        {/* Key Metrics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {loadingStates.updating && !performance ? (
-            // Loading skeletons
+        {/* Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {loading.updating && !performance ? (
             Array.from({length: 4}).map((_, i) => (
-              <Card key={i} className="p-6">
-                <div className="space-y-3">
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-8 w-16" />
-                  <Skeleton className="h-3 w-24" />
-                </div>
-              </Card>
+              <Card key={i} className="p-6"><Skeleton className="h-20 w-full" /></Card>
             ))
           ) : (
-            <>
-              <MetricCard 
-                title="Response Time" 
-                value={performance?.latency ?? 0} 
-                unit="ms" 
-                icon={Zap} 
-                change={performance?.latency ? (performance.latency <= 10 ? 'Excellent' : performance.latency <= 50 ? 'Good' : 'Slow') : 'No data'}
-                changeType={performance?.latency ? (performance.latency <= 10 ? 'positive' : performance.latency <= 50 ? 'neutral' : 'negative') : 'neutral'}
-              />
-              <MetricCard 
-                title="Throughput" 
-                value={performance?.opsPerSec ?? 0} 
-                unit="ops/s" 
-                icon={TrendingUp} 
-                change="Operations per second"
-                changeType="neutral"
-              />
-              <MetricCard 
-                title="Memory Usage" 
-                value={performance?.memoryUsageMB ?? 0} 
-                unit="MB" 
-                icon={HardDrive} 
-                change={performance?.memoryUsagePercent ? `${performance.memoryUsagePercent}% used` : 'Memory utilization'}
-                changeType="neutral"
-              />
-              <MetricCard 
-                title="Active Clients" 
-                value={performance?.connectedClients ?? '0'} 
-                icon={Users} 
-                change="Connected clients"
-                changeType="neutral"
-              />
-            </>
+            metrics.map((metric, i) => <MetricCard key={i} {...metric} />)
           )}
         </div>
 
-        {/* Connection Status Card */}
+        {/* Connection Details */}
         {isConnected && connectionInfo && (
-          <Card className="border-l-4 border-l-green-500">
+          <Card className={`border-l-4 ${getStatusColor(health).split(' ')[1]}`}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-3">
-                {connectionInfo.connectionType === 'railway' ? 
-                  <Cloud className="h-6 w-6 text-purple-500" /> : 
-                  connectionInfo.ssl ? <Shield className="h-6 w-6 text-green-500" /> :
-                  <Wifi className="h-6 w-6 text-blue-500" />
-                }
-                <span>Connection Details</span>
-                <Badge variant="outline" className={`ml-auto ${getHealthStatus().color}`}>
-                  {getHealthStatus().status.toUpperCase()}
-                </Badge>
-              </CardTitle>
-              <CardDescription>Active Redis instance information</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Type</p>
-                  <p className="text-base font-semibold capitalize">
-                    {connectionInfo.connectionType || 'Local'}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Endpoint</p>
-                  <p className="text-base font-mono">
-                    {connectionInfo.host}:{connectionInfo.port}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Security</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-base font-semibold">
-                      {connectionInfo.ssl ? 'SSL/TLS' : 'Standard'}
-                    </p>
-                    {connectionInfo.ssl && <Shield className="h-4 w-4 text-green-500" />}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Version</p>
-                  <p className="text-base font-semibold">
-                    {performance?.redisVersion || 'Unknown'}
-                  </p>
+              <div className="flex items-center gap-3">
+                {connectionInfo.connectionType === 'railway' ? <Cloud className="h-6 w-6 text-purple-500" /> : 
+                  connectionInfo.ssl ? <Shield className="h-6 w-6 text-green-500" /> : <Wifi className="h-6 w-6 text-blue-500" />}
+                <div>
+                  <CardTitle>Connection Active</CardTitle>
+                  <CardDescription>{connectionInfo.host}:{connectionInfo.port} • {performance?.redisVersion || 'Unknown'}</CardDescription>
                 </div>
               </div>
-              
-              {performance?.uptimeHuman && (
-                <>
-                  <Separator className="my-4" />
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Server className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">System Uptime</span>
-                    </div>
-                    <Badge variant="secondary">
-                      {formatUptime(performance.uptimeHuman)}
-                    </Badge>
-                  </div>
-                </>
-              )}
-            </CardContent>
+            </CardHeader>
           </Card>
         )}
 
-        {/* Database Status & Performance */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Database Distribution */}
+        {/* Dashboard Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          {/* Databases */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5" />
-                Database Overview
-              </CardTitle>
-              <CardDescription>Key distribution across available databases</CardDescription>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="h-5 w-5" />
+                  Databases ({databases.length})
+                </CardTitle>
+                <Button variant="outline" size="sm" onClick={refreshDatabases} disabled={loading.refreshing}>
+                  <RefreshCw className={`h-4 w-4 ${loading.refreshing ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {databases.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Database className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                    <p className="text-sm text-muted-foreground">No database information available</p>
-                  </div>
-                ) : (
-                  databases.slice(0, 8).map((db) => {
-                    const maxKeys = Math.max(...databases.map(d => d.keys || 1))
-                    const percentage = maxKeys > 0 ? (db.keys / maxKeys) * 100 : 0
-                    const isCurrentDb = db.id === currentDb
-                    
-                    return (
-                      <div key={db.id} className={`flex items-center justify-between p-2 rounded-lg transition-colors ${isCurrentDb ? 'bg-primary/10 border border-primary/20' : 'hover:bg-muted/50'}`}>
-                        <div className="flex items-center gap-3">
-                          <div className={`w-3 h-3 rounded-full transition-colors ${
-                            isCurrentDb ? 'bg-primary' : 'bg-muted-foreground/30'
-                          }`} />
-                          <span className="font-medium">Database {db.id}</span>
-                          {isCurrentDb && <Badge variant="secondary" className="text-xs">Active</Badge>}
+              <div className="space-y-3">
+                {databases.slice(0, 6).map((db) => {
+                  const maxKeys = Math.max(...databases.map(d => d.keys || 1))
+                  const percentage = (db.keys / maxKeys) * 100
+                  const isActive = db.id === currentDb
+                  return (
+                    <div key={db.id} className={`p-3 rounded-lg transition-all ${
+                      isActive ? 'bg-primary/10 border border-primary/20' : 'hover:bg-muted/50'
+                    }`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className={`h-2 w-2 rounded-full ${isActive ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
+                          <span className="font-medium">DB {db.id}</span>
+                          {isActive && <Badge variant="secondary" className="text-xs"><Eye className="h-3 w-3 mr-1" />Active</Badge>}
                         </div>
-                        <div className="flex items-center gap-4">
-                          <span className="text-sm text-muted-foreground font-mono min-w-16 text-right">
-                            {db.keys?.toLocaleString() ?? '0'} keys
-                          </span>
-                          <Progress value={percentage} className="w-20 h-2" />
-                        </div>
+                        <span className="font-mono text-sm">{db.keys?.toLocaleString() ?? '0'} keys</span>
                       </div>
-                    )
-                  })
-                )}
+                      <Progress value={percentage} className="h-1.5" />
+                    </div>
+                  )
+                })}
               </div>
             </CardContent>
           </Card>
 
-          {/* Performance Metrics */}
+          {/* Performance */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Performance Insights
+                <Gauge className="h-5 w-5" />
+                Performance
               </CardTitle>
-              <CardDescription>Current system performance indicators</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                {/* Cache Performance */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between items-center mb-2">
                     <span className="font-medium">Cache Hit Ratio</span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl font-bold">
-                        {performance?.hitRatio ?? '-'}%
-                      </span>
-                    </div>
+                    <span className="text-xl font-bold">{performance?.hitRatio ?? '-'}%</span>
                   </div>
-                  <Progress 
-                    value={parseFloat(performance?.hitRatio ?? '0')} 
-                    className="h-3"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Hits: {performance?.keyspaceHits ?? '-'}</span>
-                    <span>Misses: {performance?.keyspaceMisses ?? '-'}</span>
-                  </div>
+                  <Progress value={parseFloat(performance?.hitRatio ?? '0')} className="h-2" />
                 </div>
-
-                <Separator />
-
-                {/* Key Stats */}
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Current DB Keys</span>
-                    <span className="font-semibold">
-                      {performance?.currentDbKeys?.toLocaleString() ?? '-'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Total Commands</span>
-                    <span className="font-semibold">
-                      {performance?.totalCommands ?? '-'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Memory Used</span>
-                    <span className="font-semibold">
-                      {performance?.usedMemoryHuman ?? '-'}
-                    </span>
-                  </div>
+                
+                <div className="grid grid-cols-1 gap-3 pt-3 border-t">
+                  {performanceData.map(([label, value]) => (
+                    <div key={label} className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">{label}</span>
+                      <span className="font-medium">{value ?? '-'}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Quick Actions */}
+        {/* Actions */}
         <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common operations and diagnostics</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              Quick Actions
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-3">
-              <Button 
-                onClick={runLatencyTest} 
-                disabled={!isConnected || loadingStates.testing}
-                size="lg"
-              >
-                {loadingStates.testing ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <TestTube className="h-4 w-4 mr-2" />
-                )}
-                {loadingStates.testing ? 'Running Test...' : 'Performance Test'}
-              </Button>
-              
-              <Button 
-                onClick={refreshDatabases} 
-                variant="outline" 
-                disabled={!isConnected || loadingStates.refreshing}
-                size="lg"
-              >
-                {loadingStates.refreshing ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                )}
-                {loadingStates.refreshing ? 'Refreshing...' : 'Refresh Data'}
-              </Button>
-              
-              <Button 
-                onClick={() => setActiveSection('data')} 
-                variant="outline" 
-                disabled={!isConnected}
-                size="lg"
-              >
-                <Database className="h-4 w-4 mr-2" />
-                Browse Data
-              </Button>
-
-              <Button 
-                onClick={() => setActiveSection('monitoring')} 
-                variant="outline" 
-                disabled={!isConnected}
-                size="lg"
-              >
-                <Activity className="h-4 w-4 mr-2" />
-                Detailed Monitoring
-              </Button>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {actions.map(({ label, icon: Icon, onClick, isLoading }) => (
+                <Button key={label} onClick={onClick} disabled={!isConnected || isLoading} variant="outline" 
+                  className="h-20 flex-col gap-2">
+                  <Icon className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+                  <span className="text-xs">{label}</span>
+                </Button>
+              ))}
             </div>
           </CardContent>
         </Card>
-
-        {/* Status Alert */}
-        {!isConnected && (
-          <Alert className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              <strong>Not Connected:</strong> Connect to a Redis instance to view system metrics and manage data.
-            </AlertDescription>
-          </Alert>
-        )}
       </div>
     </div>
   )

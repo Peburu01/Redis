@@ -14,10 +14,8 @@ import {
   CheckCircle2, AlertCircle, Shield, Database, Zap, Info
 } from 'lucide-react'
 
-// Types
 interface ConnectionPreset {
-  name: string; description: string; type: string
-  config: any; example?: string; icon?: any
+  name: string; description: string; type: string; config: any; example?: string; icon?: any
 }
 
 interface ConnectionPageProps {
@@ -32,119 +30,84 @@ const ConnectionPage = ({
   isConnected, setIsConnected, currentDb, setCurrentDb, 
   connectionInfo, setConnectionInfo, showStatus, setActiveSection 
 }: ConnectionPageProps) => {
-  const [connectionForm, setConnectionForm] = useState({ 
+  const [form, setForm] = useState({ 
     host: 'localhost', port: 6379, password: '', database: 0,
     connectionString: '', connectionType: 'local'
   })
-  const [connectionPresets, setConnectionPresets] = useState<{[key: string]: ConnectionPreset}>({})
-  const [loadingStates, setLoadingStates] = useState({ connecting: false, testing: false })
-  const [selectedPreset, setSelectedPreset] = useState<string>('')
+  const [presets, setPresets] = useState<{[key: string]: ConnectionPreset}>({})
+  const [loading, setLoading] = useState({ connecting: false, testing: false })
+  const [selectedPreset, setSelectedPreset] = useState('')
 
-  // API helper
   const apiCall = async (endpoint: string, options: RequestInit = {}) => {
-    try {
-      const response = await fetch(`/api${endpoint}`, { 
-        headers: { 'Content-Type': 'application/json' }, 
-        ...options 
-      })
-      return await response.json()
-    } catch (error) {
-      throw new Error(`API call failed: ${error}`)
-    }
+    const response = await fetch(`/api${endpoint}`, { 
+      headers: { 'Content-Type': 'application/json' }, ...options 
+    })
+    return await response.json()
   }
 
-  // Load connection presets
-  const loadConnectionPresets = async () => {
+  const updateLoading = (key: keyof typeof loading, value: boolean) => 
+    setLoading(prev => ({ ...prev, [key]: value }))
+
+  const updateForm = (updates: Partial<typeof form>) => setForm(prev => ({ ...prev, ...updates }))
+
+  const loadPresets = async () => {
     try {
       const result = await apiCall('/connection-presets')
       if (result.success) {
-        // Add icons to presets
-        const presetsWithIcons = {
+        setPresets({
           ...result.presets,
           local: { ...result.presets.local, icon: Wifi },
           railway: { ...result.presets.railway, icon: Cloud },
           cloud: { ...result.presets.cloud, icon: Server }
-        }
-        setConnectionPresets(presetsWithIcons)
+        })
       }
     } catch (error) {
-      console.error('Failed to load connection presets:', error)
+      console.error('Failed to load presets:', error)
     }
   }
 
-  // Test connection
   const testConnection = async () => {
-    setLoadingStates(prev => ({ ...prev, testing: true }))
+    updateLoading('testing', true)
     showStatus('info', 'Testing Connection', 'Verifying Redis connection...')
     
     try {
-      let connectionData = connectionForm.connectionString 
-        ? {
-            connectionString: connectionForm.connectionString,
-            connectionType: connectionForm.connectionType,
-            database: connectionForm.database,
-            testOnly: true
-          }
-        : {
-            host: connectionForm.host,
-            port: connectionForm.port,
-            password: connectionForm.password,
-            database: connectionForm.database,
-            connectionType: 'local',
-            testOnly: true
-          }
+      const connectionData = form.connectionString ? {
+        connectionString: form.connectionString, connectionType: form.connectionType, 
+        database: form.database, testOnly: true
+      } : {
+        ...form, connectionType: 'local', testOnly: true
+      }
 
-      const result = await apiCall('/test-connection', { 
-        method: 'POST', 
-        body: JSON.stringify(connectionData) 
-      })
+      const result = await apiCall('/test-connection', { method: 'POST', body: JSON.stringify(connectionData) })
       
       if (result.success) {
         showStatus('success', 'Connection Test Passed', 
-          `Successfully connected to ${result.host}:${result.port} | Latency: ${result.latency}ms`)
+          `Connected to ${result.host}:${result.port} | Latency: ${result.latency}ms`)
       } else {
         throw new Error(result.error)
       }
     } catch (error: any) {
       showStatus('error', 'Connection Test Failed', error.message)
     } finally {
-      setLoadingStates(prev => ({ ...prev, testing: false }))
+      updateLoading('testing', false)
     }
   }
 
-  // Connect
   const connect = async () => {
-    setLoadingStates(prev => ({ ...prev, connecting: true }))
+    updateLoading('connecting', true)
     try {
-      let connectionData = connectionForm.connectionString 
-        ? {
-            connectionString: connectionForm.connectionString,
-            connectionType: connectionForm.connectionType,
-            database: connectionForm.database
-          }
-        : {
-            host: connectionForm.host,
-            port: connectionForm.port,
-            password: connectionForm.password,
-            database: connectionForm.database,
-            connectionType: 'local'
-          }
+      const connectionData = form.connectionString ? {
+        connectionString: form.connectionString, connectionType: form.connectionType, database: form.database
+      } : { ...form, connectionType: 'local' }
 
-      const result = await apiCall('/connect', { 
-        method: 'POST', 
-        body: JSON.stringify(connectionData) 
-      })
+      const result = await apiCall('/connect', { method: 'POST', body: JSON.stringify(connectionData) })
       
       if (result.success) {
         setIsConnected(true)
-        setCurrentDb(result.database || connectionForm.database)
+        setCurrentDb(result.database || form.database)
         setConnectionInfo({
-          host: result.host,
-          port: result.port,
-          connectionType: result.connectionType,
-          ssl: result.ssl
+          host: result.host, port: result.port, connectionType: result.connectionType, ssl: result.ssl
         })
-        
         showStatus('success', 'Connected Successfully', result.message)
         setActiveSection('overview')
       } else {
@@ -153,11 +116,10 @@ const ConnectionPage = ({
     } catch (error: any) {
       showStatus('error', 'Connection Failed', error.message)
     } finally {
-      setLoadingStates(prev => ({ ...prev, connecting: false }))
+      updateLoading('connecting', false)
     }
   }
 
-  // Disconnect
   const disconnect = async () => {
     try {
       await apiCall('/disconnect', { method: 'POST' })
@@ -170,106 +132,124 @@ const ConnectionPage = ({
     }
   }
 
-  // Apply preset
   const applyPreset = (presetType: string) => {
-    const preset = connectionPresets[presetType]
+    const preset = presets[presetType]
     if (!preset) return
 
     setSelectedPreset(presetType)
-    
-    if (preset.type === 'local') {
-      setConnectionForm({
-        ...connectionForm,
-        ...preset.config,
-        connectionString: ''
-      })
-    } else {
-      setConnectionForm({
-        ...connectionForm,
-        connectionString: preset.config.connectionString || '',
-        connectionType: preset.type,
-        database: preset.config.database || 0
-      })
-    }
+    updateForm(preset.type === 'local' 
+      ? { ...preset.config, connectionString: '' }
+      : { connectionString: preset.config.connectionString || '', connectionType: preset.type, database: preset.config.database || 0 }
+    )
   }
 
-  // Copy to clipboard
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
     showStatus('success', 'Copied', 'Connection string copied to clipboard')
   }
 
-  useEffect(() => {
-    loadConnectionPresets()
-  }, [])
+  useEffect(() => { loadPresets() }, [])
+
+  const presetColors = { local: 'blue', railway: 'purple', cloud: 'green' }
+  const formFields = [
+    { label: 'Server Host', id: 'host', value: form.host, placeholder: 'localhost', type: 'text' },
+    { label: 'Port Number', id: 'port', value: form.port, placeholder: '6379', type: 'number' },
+    { label: 'Password', id: 'password', value: form.password, placeholder: 'Optional authentication', type: 'password' },
+  ]
+
+  const connectionTypes = [
+    { value: 'local', label: 'Local Redis' },
+    { value: 'railway', label: 'Railway Redis' },
+    { value: 'cloud', label: 'Cloud Redis' }
+  ]
+
+  const actionButtons = [
+    { 
+      label: loading.connecting ? 'Connecting...' : 'Connect', 
+      onClick: connect, 
+      disabled: loading.connecting || loading.testing,
+      variant: 'default' as const,
+      icon: loading.connecting ? Loader2 : Link,
+      spin: loading.connecting
+    },
+    { 
+      label: loading.testing ? 'Testing...' : 'Test Connection', 
+      onClick: testConnection, 
+      disabled: loading.connecting || loading.testing,
+      variant: 'outline' as const,
+      icon: loading.testing ? Loader2 : TestTube,
+      spin: loading.testing
+    },
+    { 
+      label: 'Disconnect', 
+      onClick: disconnect, 
+      disabled: !isConnected,
+      variant: 'destructive' as const,
+      icon: Square,
+      spin: false
+    }
+  ]
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 space-y-8 max-w-4xl">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
+      <div className="container mx-auto p-6 space-y-6 max-w-7xl">
+        
         {/* Header */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="rounded-2xl bg-gradient-to-r from-primary/10 to-background border p-8">
+          <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Connection Manager</h1>
-              <p className="text-lg text-muted-foreground mt-1">
-                Connect to Local, Railway, or Cloud Redis instances
-              </p>
+              <h1 className="text-4xl font-bold mb-2">Redis Connection Hub</h1>
+              <p className="text-lg text-muted-foreground">Connect to Local, Railway, or Cloud Redis instances</p>
             </div>
-            <Badge 
-              variant={isConnected ? "default" : "secondary"} 
-              className="gap-2"
-            >
+            <Badge variant={isConnected ? "default" : "secondary"} className="gap-1">
               {isConnected ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
               {isConnected ? 'Connected' : 'Disconnected'}
             </Badge>
           </div>
         </div>
 
-        {/* Current Connection Status */}
+        {/* Connection Status */}
         {isConnected && connectionInfo && (
           <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
             <CheckCircle2 className="h-4 w-4 text-green-600" />
             <AlertDescription>
-              <div className="space-y-1">
-                <div><strong>Status:</strong> Connected to {connectionInfo.host}:{connectionInfo.port}</div>
-                <div><strong>Type:</strong> {connectionInfo.connectionType} {connectionInfo.ssl && <Shield className="inline h-3 w-3" />}</div>
-                <div><strong>Active Database:</strong> Database {currentDb}</div>
+              <div className="flex flex-wrap gap-4 text-sm">
+                <span><strong>Host:</strong> {connectionInfo.host}:{connectionInfo.port}</span>
+                <span><strong>Type:</strong> {connectionInfo.connectionType} {connectionInfo.ssl && <Shield className="inline h-3 w-3" />}</span>
+                <span><strong>Database:</strong> DB {currentDb}</span>
               </div>
             </AlertDescription>
           </Alert>
         )}
 
         {/* Quick Connect Presets */}
-        {Object.keys(connectionPresets).length > 0 && (
+        {Object.keys(presets).length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Zap className="h-5 w-5" />
-                Quick Connect
+                Quick Connect Presets
               </CardTitle>
               <CardDescription>Choose from predefined connection configurations</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {Object.entries(connectionPresets).map(([key, preset]) => {
+                {Object.entries(presets).map(([key, preset]) => {
                   const IconComponent = preset.icon || Server
                   const isSelected = selectedPreset === key
+                  const colorClass = presetColors[key as keyof typeof presetColors] || 'blue'
                   
                   return (
                     <Card 
-                      key={key} 
-                      className={`cursor-pointer transition-all hover:shadow-md ${
-                        isSelected ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'
+                      key={key}
+                      className={`cursor-pointer transition-all hover:shadow-lg hover:-translate-y-1 ${
+                        isSelected ? 'ring-2 ring-primary bg-primary/5 border-primary/20' : 'hover:bg-muted/50'
                       }`}
                       onClick={() => applyPreset(key)}
                     >
-                      <CardContent className="p-6 text-center space-y-3">
+                      <CardContent className="p-6 text-center space-y-4">
                         <div className="flex justify-center">
-                          <div className={`p-3 rounded-full ${
-                            key === 'local' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-400' :
-                            key === 'railway' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-400' :
-                            'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400'
-                          }`}>
+                          <div className={`p-3 rounded-full bg-${colorClass}-100 text-${colorClass}-600 dark:bg-${colorClass}-900 dark:text-${colorClass}-400`}>
                             <IconComponent className="h-6 w-6" />
                           </div>
                         </div>
@@ -280,27 +260,18 @@ const ConnectionPage = ({
                         </div>
                         
                         {preset.example && (
-                          <div className="flex items-center gap-2 mt-3 p-2 bg-muted rounded-md">
-                            <code className="text-xs font-mono flex-1 truncate">
-                              {preset.example}
-                            </code>
-                            <Button 
-                              size="sm" 
-                              variant="ghost" 
-                              className="h-6 w-6 p-0 shrink-0" 
-                              onClick={(e) => { 
-                                e.stopPropagation() 
-                                copyToClipboard(preset.example!) 
-                              }}
-                            >
+                          <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                            <code className="text-xs font-mono flex-1 truncate">{preset.example}</code>
+                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 shrink-0" 
+                              onClick={(e) => { e.stopPropagation(); copyToClipboard(preset.example!) }}>
                               <Copy className="h-3 w-3" />
                             </Button>
                           </div>
                         )}
                         
                         {isSelected && (
-                          <Badge variant="secondary" className="mt-2">
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                          <Badge variant="secondary" className="gap-1">
+                            <CheckCircle2 className="h-3 w-3" />
                             Selected
                           </Badge>
                         )}
@@ -337,49 +308,24 @@ const ConnectionPage = ({
               
               <TabsContent value="individual" className="space-y-6 mt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="host" className="text-sm font-medium">Server Host</Label>
-                    <Input 
-                      id="host" 
-                      value={connectionForm.host} 
-                      onChange={(e) => setConnectionForm({...connectionForm, host: e.target.value})} 
-                      placeholder="localhost"
-                      className="font-mono"
-                    />
-                  </div>
+                  {formFields.map(({ label, id, value, placeholder, type }) => (
+                    <div key={id} className="space-y-2">
+                      <Label htmlFor={id} className="text-sm font-medium">{label}</Label>
+                      <Input 
+                        id={id} 
+                        type={type}
+                        value={value} 
+                        onChange={(e) => updateForm({ [id]: type === 'number' ? Number(e.target.value) : e.target.value })} 
+                        placeholder={placeholder}
+                        className="font-mono"
+                      />
+                    </div>
+                  ))}
                   
                   <div className="space-y-2">
-                    <Label htmlFor="port" className="text-sm font-medium">Port Number</Label>
-                    <Input 
-                      id="port" 
-                      type="number" 
-                      value={connectionForm.port} 
-                      onChange={(e) => setConnectionForm({...connectionForm, port: Number(e.target.value)})} 
-                      placeholder="6379"
-                      className="font-mono"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="password" className="text-sm font-medium">Password</Label>
-                    <Input 
-                      id="password" 
-                      type="password" 
-                      value={connectionForm.password} 
-                      onChange={(e) => setConnectionForm({...connectionForm, password: e.target.value})} 
-                      placeholder="Optional authentication"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="database" className="text-sm font-medium">Default Database</Label>
-                    <Select 
-                      value={connectionForm.database.toString()} 
-                      onValueChange={(value) => setConnectionForm({...connectionForm, database: Number(value)})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
+                    <Label className="text-sm font-medium">Default Database</Label>
+                    <Select value={form.database.toString()} onValueChange={(value) => updateForm({ database: Number(value) })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {Array.from({length: 16}, (_, i) => (
                           <SelectItem key={i} value={i.toString()}>Database {i}</SelectItem>
@@ -393,13 +339,11 @@ const ConnectionPage = ({
               <TabsContent value="string" className="space-y-6 mt-6">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="connectionString" className="text-sm font-medium">
-                      Redis Connection String
-                    </Label>
+                    <Label htmlFor="connectionString" className="text-sm font-medium">Redis Connection String</Label>
                     <Textarea
                       id="connectionString"
-                      value={connectionForm.connectionString}
-                      onChange={(e) => setConnectionForm({...connectionForm, connectionString: e.target.value})}
+                      value={form.connectionString}
+                      onChange={(e) => updateForm({ connectionString: e.target.value })}
                       placeholder="redis://default:password@host:port/database&#10;&#10;Examples:&#10;redis://localhost:6379&#10;redis://default:QcwgNhXhWOWPwZAfuUDJixoQLVfYZTda@crossover.proxy.rlwy.net:23278"
                       className="font-mono text-sm min-h-24 resize-none"
                     />
@@ -407,31 +351,21 @@ const ConnectionPage = ({
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="connectionType" className="text-sm font-medium">Connection Type</Label>
-                      <Select 
-                        value={connectionForm.connectionType} 
-                        onValueChange={(value) => setConnectionForm({...connectionForm, connectionType: value})}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                      <Label className="text-sm font-medium">Connection Type</Label>
+                      <Select value={form.connectionType} onValueChange={(value) => updateForm({ connectionType: value })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="local">Local Redis</SelectItem>
-                          <SelectItem value="railway">Railway Redis</SelectItem>
-                          <SelectItem value="cloud">Cloud Redis</SelectItem>
+                          {connectionTypes.map(({ value, label }) => (
+                            <SelectItem key={value} value={value}>{label}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="stringDatabase" className="text-sm font-medium">Default Database</Label>
-                      <Select 
-                        value={connectionForm.database.toString()} 
-                        onValueChange={(value) => setConnectionForm({...connectionForm, database: Number(value)})}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                      <Label className="text-sm font-medium">Default Database</Label>
+                      <Select value={form.database.toString()} onValueChange={(value) => updateForm({ database: Number(value) })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {Array.from({length: 16}, (_, i) => (
                             <SelectItem key={i} value={i.toString()}>Database {i}</SelectItem>
@@ -448,53 +382,19 @@ const ConnectionPage = ({
 
             {/* Action Buttons */}
             <div className="flex flex-wrap gap-3">
-              <Button 
-                onClick={connect} 
-                disabled={loadingStates.connecting || loadingStates.testing}
-                size="lg"
-                className="min-w-32"
-              >
-                {loadingStates.connecting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Connecting...
-                  </>
-                ) : (
-                  <>
-                    <Link className="h-4 w-4 mr-2" />
-                    Connect
-                  </>
-                )}
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                onClick={testConnection} 
-                disabled={loadingStates.connecting || loadingStates.testing}
-                size="lg"
-              >
-                {loadingStates.testing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Testing...
-                  </>
-                ) : (
-                  <>
-                    <TestTube className="h-4 w-4 mr-2" />
-                    Test Connection
-                  </>
-                )}
-              </Button>
-              
-              <Button 
-                variant="destructive" 
-                onClick={disconnect} 
-                disabled={!isConnected}
-                size="lg"
-              >
-                <Square className="h-4 w-4 mr-2" />
-                Disconnect
-              </Button>
+              {actionButtons.map(({ label, onClick, disabled, variant, icon: Icon, spin }) => (
+                <Button 
+                  key={label}
+                  onClick={onClick} 
+                  disabled={disabled}
+                  variant={variant}
+                  size="lg"
+                  className="min-w-32"
+                >
+                  <Icon className={`h-4 w-4 mr-2 ${spin ? 'animate-spin' : ''}`} />
+                  {label}
+                </Button>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -504,12 +404,12 @@ const ConnectionPage = ({
           <Info className="h-4 w-4" />
           <AlertDescription>
             <div className="space-y-2">
-              <p><strong>Need help?</strong></p>
-              <ul className="text-sm space-y-1 ml-4 list-disc">
-                <li><strong>Local Redis:</strong> Make sure Redis is running on your machine</li>
-                <li><strong>Railway:</strong> Use the connection string from your Railway Redis service</li>
-                <li><strong>Cloud:</strong> Ensure your Redis instance accepts external connections</li>
-              </ul>
+              <p className="font-medium">Connection Help</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div><strong>Local Redis:</strong> Ensure Redis is running locally</div>
+                <div><strong>Railway:</strong> Use connection string from Railway dashboard</div>
+                <div><strong>Cloud:</strong> Check firewall and external access settings</div>
+              </div>
             </div>
           </AlertDescription>
         </Alert>
