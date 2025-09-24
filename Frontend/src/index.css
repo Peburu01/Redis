@@ -51,28 +51,28 @@
   --popover-foreground: oklch(0.147 0.004 49.25);
   --primary: oklch(0.216 0.006 56.043);
   --primary-foreground: oklch(0.985 0.001 106.423);
-  --secondary: oklch(0.97 0.001 106.424);
+  --secondary: oklch(0.94 0.002 106.424);
   --secondary-foreground: oklch(0.216 0.006 56.043);
-  --muted: oklch(0.97 0.001 106.424);
-  --muted-foreground: oklch(0.553 0.013 58.071);
-  --accent: oklch(0.97 0.001 106.424);
+  --muted: oklch(0.94 0.002 106.424);
+  --muted-foreground: oklch(0.42 0.015 58.071);
+  --accent: oklch(0.94 0.002 106.424);
   --accent-foreground: oklch(0.216 0.006 56.043);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.923 0.003 48.717);
-  --input: oklch(0.923 0.003 48.717);
+  --border: oklch(0.88 0.005 48.717);
+  --input: oklch(0.88 0.005 48.717);
   --ring: oklch(0.709 0.01 56.259);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0.001 106.423);
-  --sidebar-foreground: oklch(0.147 0.004 49.25);
+  --sidebar: oklch(0.975 0.002 106.423);
+  --sidebar-foreground: oklch(0.18 0.006 56.043);
   --sidebar-primary: oklch(0.216 0.006 56.043);
   --sidebar-primary-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-accent: oklch(0.97 0.001 106.424);
-  --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
-  --sidebar-border: oklch(0.923 0.003 48.717);
+  --sidebar-accent: oklch(0.92 0.004 106.424);
+  --sidebar-accent-foreground: oklch(0.16 0.006 56.043);
+  --sidebar-border: oklch(0.88 0.005 48.717);
   --sidebar-ring: oklch(0.709 0.01 56.259);
 }
 
@@ -116,5 +116,53 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+body { 
+  overscroll-behavior: none; 
+}
+
+:root { 
+  overscroll-behavior: none; 
+  overflow-x: hidden; 
+}
+
+/* Enhanced sidebar visibility for light mode */
+@layer components {
+  .sidebar-button {
+    @apply relative transition-all duration-200;
+  }
+  
+  .sidebar-button:hover {
+    @apply transform translate-x-0.5;
+  }
+  
+  .sidebar-badge-offline {
+    @apply bg-gray-100 text-gray-600 border border-gray-300 shadow-sm;
+  }
+  
+  .dark .sidebar-badge-offline {
+    @apply bg-gray-800 text-gray-300 border-gray-700;
+  }
+  
+  .sidebar-connection-status {
+    @apply border border-border bg-muted/50 backdrop-blur-sm;
+  }
+  
+  .sidebar-connection-status.connected {
+    @apply bg-green-50 border-green-200 shadow-sm;
+  }
+  
+  .dark .sidebar-connection-status.connected {
+    @apply bg-green-950/20 border-green-800/50;
+  }
+  
+  .sidebar-tooltip {
+    @apply bg-gray-900 text-white border border-gray-700 shadow-lg;
+  }
+  
+  .dark .sidebar-tooltip {
+    @apply bg-gray-100 text-gray-900 border-gray-300;
   }
 }
